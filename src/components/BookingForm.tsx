@@ -76,11 +76,34 @@ export const BookingForm: React.FC<BookingFormProps> = ({
     fetchAvailability();
   }, [bookingDate]);
 
-  const horasDisponibles = HORAS_AURA_BASE.filter(hora => !busySlots.includes(hora));
+  const today = new Date();
+  // Format local date to YYYY-MM-DD for comparison (handling timezone correctly for Colombia/local)
+  // Or simply parse the bookingDate and compare with today.
+  const isToday = bookingDate === today.toLocaleDateString('en-CA', { timeZone: 'America/Bogota' }) || bookingDate === today.toISOString().split('T')[0];
+  const currentHour = today.getHours();
+  const currentMinutes = today.getMinutes();
+
+  const horasDisponibles = HORAS_AURA_BASE.filter(hora => {
+    if (busySlots.includes(hora)) return false;
+    if (isToday) {
+      const [h, m] = hora.split(':').map(Number);
+      if (h < currentHour || (h === currentHour && m <= currentMinutes)) {
+        return false;
+      }
+    }
+    return true;
+  });
+
+  // Ensure selected time is still valid
+  useEffect(() => {
+    if (horasDisponibles.length > 0 && !horasDisponibles.includes(bookingTime)) {
+      setBookingTime(horasDisponibles[0]);
+    }
+  }, [horasDisponibles, bookingTime]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedService || !clientName || !clientEmail || !clientPhone || !bookingDate) {
+    if (!selectedService || !clientName || !clientEmail || !clientPhone || !bookingDate || !bookingTime) {
       alert('Por favor completa todos los campos del formulario.');
       return;
     }
@@ -102,13 +125,21 @@ export const BookingForm: React.FC<BookingFormProps> = ({
     };
 
     try {
-      await fetch('/api/book', {
+      const res = await fetch('/api/book', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(nuevaCita)
       });
-    } catch (e) {
-      console.warn("Fallo el envío a backend (posible falta de variables locales), continuando...");
+      
+      const data = await res.json().catch(() => null);
+      
+      if (!res.ok || !data || !data.success) {
+        throw new Error((data && data.error) ? data.error : 'Error al conectar con el servidor API.');
+      }
+    } catch (e: any) {
+      alert("Error al reservar la cita: " + (e.message || "Verifique la base de datos y el calendario."));
+      setIsSubmitting(false);
+      return;
     }
 
     onBookingSuccess(nuevaCita);
