@@ -1,0 +1,17 @@
+{
+  "version": 2,
+  "framework": "vite",
+  "functions": {
+    "api/**/*.ts": {
+      "memory": 1024,
+      "maxDuration": 15,
+      "includeFiles": "credentials.json"
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}
