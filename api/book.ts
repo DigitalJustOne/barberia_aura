@@ -21,7 +21,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const CALENDAR_ID = process.env.GOOGLE_CALENDAR_ID!;
     const OR_API_KEY = process.env.OPENROUTER_API_KEY!;
     const OR_MODEL = process.env.OPENROUTER_MODEL!;
-    const CREDENTIALS_PATH = path.resolve(process.cwd(), 'credentials.json');
 
     // Clientes
     const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -29,11 +28,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       baseURL: "https://openrouter.ai/api/v1",
       apiKey: OR_API_KEY,
     });
-
-    const auth = new google.auth.GoogleAuth({
-      keyFile: CREDENTIALS_PATH,
-      scopes: ["https://www.googleapis.com/auth/calendar"],
-    });
+    let auth;
+    if (process.env.GOOGLE_CREDENTIALS) {
+      const credentials = JSON.parse(process.env.GOOGLE_CREDENTIALS);
+      auth = new google.auth.GoogleAuth({
+        credentials,
+        scopes: ["https://www.googleapis.com/auth/calendar"],
+      });
+    } else {
+      const CREDENTIALS_PATH = path.resolve(process.cwd(), 'credentials.json');
+      auth = new google.auth.GoogleAuth({
+        keyFile: CREDENTIALS_PATH,
+        scopes: ["https://www.googleapis.com/auth/calendar"],
+      });
+    }
     const authClient = await auth.getClient();
     const calendar = google.calendar({ version: "v3", auth: authClient as any });
 

@@ -16,17 +16,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const CREDENTIALS_PATH = path.resolve(process.cwd(), 'credentials.json');
     const CALENDAR_ID = process.env.GOOGLE_CALENDAR_ID;
 
     if (!CALENDAR_ID) {
       throw new Error('Falta GOOGLE_CALENDAR_ID en variables de entorno.');
     }
 
-    const auth = new google.auth.GoogleAuth({
-      keyFile: CREDENTIALS_PATH,
-      scopes: ["https://www.googleapis.com/auth/calendar.readonly"],
-    });
+    let auth;
+    if (process.env.GOOGLE_CREDENTIALS) {
+      const credentials = JSON.parse(process.env.GOOGLE_CREDENTIALS);
+      auth = new google.auth.GoogleAuth({
+        credentials,
+        scopes: ["https://www.googleapis.com/auth/calendar.readonly"],
+      });
+    } else {
+      const CREDENTIALS_PATH = path.resolve(process.cwd(), 'credentials.json');
+      auth = new google.auth.GoogleAuth({
+        keyFile: CREDENTIALS_PATH,
+        scopes: ["https://www.googleapis.com/auth/calendar.readonly"],
+      });
+    }
 
     const calendar = google.calendar({ version: "v3", auth });
 
