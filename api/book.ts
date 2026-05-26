@@ -93,10 +93,37 @@ Regla: Si es corte (30), barba (20), ambos o ritual (45-60).
       throw new Error("No se pudo agendar en Google Calendar: " + calErr.message);
     }
 
-    // 3. Guardar en Supabase
+    // 3. Gestionar Perfil (Puntos)
+    let { data: perfiles } = await supabase
+      .from('perfiles')
+      .select('id, puntos_acumulados')
+      .eq('whatsapp', cita.clientPhone);
+
+    if (perfiles && perfiles.length > 0) {
+      // Actualizar perfil existente sumando 150 puntos por reserva
+      const { error: updateErr } = await supabase
+        .from('perfiles')
+        .update({ puntos_acumulados: (perfiles[0].puntos_acumulados || 0) + 150 })
+        .eq('id', perfiles[0].id);
+        
+      if (updateErr) console.error("Error al actualizar puntos:", updateErr.message);
+    } else {
+      // Crear nuevo perfil con bono de reserva (150)
+      const { error: insertProfileErr } = await supabase
+        .from('perfiles')
+        .insert([{
+          nombre: cita.clientName,
+          whatsapp: cita.clientPhone,
+          rol: 'cliente',
+          puntos_acumulados: 150
+        }]);
+        
+      if (insertProfileErr) console.error("Error al crear perfil:", insertProfileErr.message);
+    }
+
+    // 4. Guardar en Supabase (Citas) - Sin enviar id manual para que genere UUID auto
     const { error: sbErr } = await supabase.from('citas').insert([
       {
-        id: cita.id,
         cliente_nombre: cita.clientName,
         cliente_telefono: cita.clientPhone,
         barbero: cita.barberName,
